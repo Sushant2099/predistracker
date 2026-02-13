@@ -200,20 +200,30 @@
     function renderTable() {
         const tbody = document.getElementById("tableBody");
         tbody.innerHTML = "";
+        
         patientsData.forEach((p, index) => {
             const row = tbody.insertRow();
-            // तारखांची यादी तयार करणे
-            let dateLogs = p.attLogs ? p.attLogs.join(", ") : "No dates yet";
+            
+            // तारखांची लिस्ट तयार करणे (एका खाली एक)
+            let dateHtml = "";
+            if (p.attLogs && p.attLogs.length > 0) {
+                // तारखा उलट्या क्रमाने लावल्या जेणेकरून नवीन तारीख वर दिसेल
+                dateHtml = p.attLogs.slice().reverse().map(date => 
+                    `<span class="att-log-item">📅 ${date}</span>`
+                ).join("");
+            } else {
+                dateHtml = "<span style='color:#999'>No records</span>";
+            }
             
             row.innerHTML = `
                 <td>${p.caseNo}</td>
-                <td>${p.pName}</td>
+                <td><strong>${p.pName}</strong></td>
                 <td>${p.pCat}</td>
                 <td>
                     <button class="att-btn" onclick="markAttendance(${index})">Mark Today</button>
                     <span class="att-count">Total: <span class="count-num">${p.attCount || 0}</span> Days</span>
-                    <div style="font-size: 10px; color: #666; margin-top: 5px; max-width: 150px;">
-                        <strong>Dates:</strong> ${dateLogs}
+                    <div class="att-log-list">
+                        ${dateHtml}
                     </div>
                 </td>
                 <td>${p.pStat}</td>
@@ -223,7 +233,7 @@
                 <td>₹${Number(p.pAmt).toLocaleString('en-IN')}</td>
                 <td>
                     <button class="edit-btn" onclick="editRow(${index})">Edit</button>
-                    <button onclick="deleteRow(${index})" style="color:red; cursor:pointer; border:none; background:none; font-weight:bold;">X</button>
+                    <button onclick="deleteRow(${index})" style="color:red; cursor:pointer; border:none; background:none; font-weight:bold; margin-left:10px;">X</button>
                 </td>
             `;
         });
@@ -312,3 +322,4 @@
 </body>
 
 </html>
+
