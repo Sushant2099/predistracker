@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <title>Hospital Insurance Tracker - Persistent</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; }
+        #loginPage { display: flex; justify-content: center; align-items: center; height: 100vh; background: #0056b3; }
+        .login-box { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 350px; text-align: center; }
+        .login-box input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .login-btn { background: #28a745; color: white; border: none; width: 100%; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        #dashboard { display: none; padding: 20px; }
+        .container { width: 99%; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; margin-bottom: 20px; padding-bottom: 10px; }
+        .hospital-name-display { color: #0056b3; margin: 0; font-size: 24px; }
+        .logout-btn { background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+        .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 10px; }
+        #searchInput { width: 300px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        .btn-group { display: flex; gap: 10px; }
+        .add-btn { background-color: #0066cc; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .excel-btn { background-color: #1d6f42; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background-color: #0066cc; color: white; padding: 10px; text-align: left; font-size: 11px; border: 1px solid #ddd; text-transform: uppercase; }
+        td { padding: 10px; border: 1px solid #ddd; font-size: 13px; vertical-align: middle; }
+        .att-btn { background-color: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .att-count { font-weight: bold; color: #0056b3; display: block; margin-top: 5px; font-size: 11px; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; color: white; }
+        .bg-normal { background-color: #28a745; }
+        .bg-death { background-color: #dc3545; }
+        .bg-pending { background-color: #6c757d; }
+        .modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); overflow-y: auto; }
+        .modal-content { background: white; margin: 2% auto; padding: 20px; width: 500px; border-radius: 8px; position: relative; }
+        .form-group { margin-bottom: 12px; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .save-btn { background-color: #28a745; color: white; width: 100%; border: none; padding: 12px; border-radius: 4px; cursor: pointer; margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="loginPage">
+    <div class="login-box">
+        <h2>Hospital Login</h2>
+        <input type="text" id="hospNameInput" placeholder="Hospital Name">
+        <input type="password" id="passInput" placeholder="Password (admin123)">
+        <button class="login-btn" onclick="handleLogin()">Login</button>
+    </div>
+</div>
+
+<div id="dashboard">
+    <div class="container">
+        <div class="header-flex">
+            <h2 class="hospital-name-display" id="displayHospName">Hospital Name</h2>
+            <button class="logout-btn" onclick="handleLogout()">Logout</button>
+        </div>
+
+        <div class="controls">
+            <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Search patient name...">
+            <div class="btn-group">
+                <button class="excel-btn" onclick="exportToExcel()">📊 Download Excel</button>
+                <button class="add-btn" onclick="openModal()">+ Add New Patient</button>
+            </div>
+        </div>
+
+        <table id="patientTable">
+            <thead>
+                <tr>
+                    <th>CASE NO</th>
+                    <th>PATIENT NAME</th>
+                    <th>CATEGORY</th>
+                    <th>ATTENDANCE</th>
+                    <th>PREAUTH STATUS</th>
+                    <th>DISCH. STATUS</th>
+                    <th>APPROV. DATE</th>
+                    <th>DISCH. DATE</th>
+                    <th>AMOUNT</th>
+                    <th>ACTIONS</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="patientModal" class="modal">
+    <div class="modal-content">
+        <span onclick="closeModal()" style="float:right; cursor:pointer; color:red; font-size:24px;">&times;</span>
+        <h3 id="modalTitle">Patient Details</h3>
+        <input type="hidden" id="editRowId">
+        <div class="form-group"><input type="text" id="caseNo" placeholder="Case No"></div>
+        <div class="form-group"><input type="text" id="pName" placeholder="Patient Name"></div>
+        <div class="form-group">
+            <select id="pCategory">
+                <option value="Burns Management">Burns Management</option>
+
+                <option value="Cardiology">Cardiology</option>
+
+                <option value="CTVS">CTVS</option>
+
+                <option value="Emergency Room Packages">Emergency Room Packages</option>
+
+                <option value="ENT">ENT</option>
+
+                <option value="General Medicine">General Medicine</option>
+
+                <option value="General Surgery">General Surgery</option>
+
+                <option value="Infectious Diseases">Infectious Diseases</option>
+
+                <option value="Interventional Radiology">Interventional Radiology</option>
+
+                <option value="Medical Oncology">Medical Oncology</option>
+
+                <option value="Mental Disorders">Mental Disorders</option>
+
+                <option value="Neonatal Care">Neonatal Care</option>
+
+                <option value="Neurosurgery">Neurosurgery</option>
+
+                <option value="Obstetrics & Gynecology">Obstetrics & Gynecology</option>
+
+                <option value="Ophthalmology">Ophthalmology</option>
+
+                <option value="Oral & Maxillofacial Surgery">Oral & Maxillofacial Surgery</option>
+
+                <option value="Organ and Tissue Transplant">Organ and Tissue Transplant</option>
+
+                <option value="Polytrauma">Polytrauma</option>
+
+                <option value="Orthopedics">Orthopedics</option>
+
+                <option value="Palliative Medicine">Palliative Medicine</option>
+
+                <option value="Pediatric Medical Management">Pediatric Medical Management</option>
+
+                <option value="Pediatric Surgery">Pediatric Surgery</option>
+
+                <option value="Plastic & Reconstructive Surgery">Plastic & Reconstructive Surgery</option>
+
+                <option value="Radiation Oncology">Radiation Oncology</option>
+
+                <option value="Surgical Oncology">Surgical Oncology</option>
+
+                <option value="Unspecified Surgical Package">Unspecified Surgical Package</option>
+
+                <option value="Urology">Urology</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <select id="pStatus">
+                <option value="Preauth Sent">Preauth Sent</option>
+
+                <option value="Pending">Pending</option>
+
+                <option value="Approved">Approved</option>
+
+                <option value="Rejected">Rejected</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <select id="pDischargeStatus">
+                <option value="Admitted">Still Admitted</option>
+                <option value="Normal">Normal Discharge</option>
+                <option value="LAMA">LAMA</option>
+                <option value="Death">Death</option>
+            </select>
+        </div>
+        <div class="form-group"><label>Approv. Date:</label><input type="date" id="apprDate"></div>
+        <div class="form-group"><label>Disch. Date:</label><input type="date" id="dischDate"></div>
+        <div class="form-group"><input type="number" id="pAmount" placeholder="Amount"></div>
+        <button class="save-btn" onclick="saveData()">Save Data</button>
+    </div>
+</div>
+
+<script>
+    let currentHospital = "";
+    let patientsData = [];
+
+    function handleLogin() {
+        const hName = document.getElementById("hospNameInput").value.trim();
+        const pass = document.getElementById("passInput").value;
+        if (hName && pass === "admin123") {
+            currentHospital = hName;
+            document.getElementById("loginPage").style.display = "none";
+            document.getElementById("dashboard").style.display = "block";
+            document.getElementById("displayHospName").innerText = "🏥 " + currentHospital;
+            loadData();
+        } else { alert("Wrong Password!"); }
+    }
+
+    function handleLogout() { location.reload(); }
+
+    function loadData() {
+        const saved = localStorage.getItem("hospData_" + currentHospital);
+        patientsData = saved ? JSON.parse(saved) : [];
+        renderTable();
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById("tableBody");
+        tbody.innerHTML = "";
+        patientsData.forEach((p, index) => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>${p.caseNo}</td>
+                <td>${p.pName}</td>
+                <td>${p.pCat}</td>
+                <td>
+                    <button class="att-btn" onclick="markAttendance(${index})">Mark Today</button>
+                    <span class="att-count">Total: <span class="count-num">${p.attCount || 0}</span> Days</span>
+                </td>
+                <td>${p.pStat}</td>
+                <td><span class="badge ${p.dStat==='Normal'?'bg-normal':p.dStat==='Death'?'bg-death':'bg-pending'}">${p.dStat}</span></td>
+                <td>${p.aDate}</td>
+                <td>${p.dDate}</td>
+                <td>₹${Number(p.pAmt).toLocaleString('en-IN')}</td>
+                <td>
+                    <button onclick="editRow(${index})">Edit</button>
+                    <button onclick="deleteRow(${index})" style="color:red">X</button>
+                </td>
+            `;
+        });
+    }
+
+    function saveData() {
+        const pObj = {
+            caseNo: document.getElementById("caseNo").value,
+            pName: document.getElementById("pName").value,
+            pCat: document.getElementById("pCategory").value,
+            pStat: document.getElementById("pStatus").value,
+            dStat: document.getElementById("pDischargeStatus").value,
+            aDate: document.getElementById("apprDate").value || '-',
+            dDate: document.getElementById("dischDate").value || '-',
+            pAmt: document.getElementById("pAmount").value,
+            attCount: 0,
+            attLogs: []
+        };
+        const editId = document.getElementById("editRowId").value;
+        if (editId === "") {
+            patientsData.push(pObj);
+        } else {
+            pObj.attCount = patientsData[editId].attCount;
+            pObj.attLogs = patientsData[editId].attLogs;
+            patientsData[editId] = pObj;
+        }
+        syncStorage();
+        closeModal();
+    }
+
+    function markAttendance(index) {
+        const today = new Date().toLocaleDateString('en-IN');
+        if (!patientsData[index].attLogs) patientsData[index].attLogs = [];
+        if (patientsData[index].attLogs.includes(today)) {
+            alert("आजची हजेरी आधीच झाली आहे!");
+            return;
+        }
+        patientsData[index].attLogs.push(today);
+        patientsData[index].attCount = (patientsData[index].attCount || 0) + 1;
+        syncStorage();
+    }
+
+    function syncStorage() {
+        localStorage.setItem("hospData_" + currentHospital, JSON.stringify(patientsData));
+        renderTable();
+    }
+
+    function editRow(index) {
+        const p = patientsData[index];
+        document.getElementById("editRowId").value = index;
+        document.getElementById("caseNo").value = p.caseNo;
+        document.getElementById("pName").value = p.pName;
+        document.getElementById("apprDate").value = p.aDate === '-' ? "" : p.aDate;
+        document.getElementById("dischDate").value = p.dDate === '-' ? "" : p.dDate;
+        document.getElementById("pAmount").value = p.pAmt;
+        document.getElementById("patientModal").style.display = "block";
+    }
+
+    function deleteRow(index) {
+        if (confirm("डिलीट करायचे?")) {
+            patientsData.splice(index, 1);
+            syncStorage();
+        }
+    }
+
+    function openModal() {
+        document.getElementById("editRowId").value = "";
+        document.querySelectorAll(".modal-content input").forEach(i => i.value = "");
+        document.getElementById("patientModal").style.display = "block";
+    }
+    function closeModal() { document.getElementById("patientModal").style.display = "none"; }
+    
+    function filterTable() {
+        let val = document.getElementById("searchInput").value.toUpperCase();
+        let rows = document.getElementById("tableBody").getElementsByTagName("tr");
+        for (let r of rows) { r.style.display = r.innerText.toUpperCase().includes(val) ? "" : "none"; }
+    }
+
+    function exportToExcel() {
+        const ws = XLSX.utils.json_to_sheet(patientsData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Data");
+        XLSX.writeFile(wb, `${currentHospital}_Report.xlsx`);
+    }
+</script>
+</body>
+</html>
