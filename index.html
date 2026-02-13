@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="mr">
 <head>
@@ -202,6 +203,9 @@
         tbody.innerHTML = "";
         patientsData.forEach((p, index) => {
             const row = tbody.insertRow();
+            // तारखांची यादी तयार करणे
+            let dateLogs = p.attLogs ? p.attLogs.join(", ") : "No dates yet";
+            
             row.innerHTML = `
                 <td>${p.caseNo}</td>
                 <td>${p.pName}</td>
@@ -209,6 +213,9 @@
                 <td>
                     <button class="att-btn" onclick="markAttendance(${index})">Mark Today</button>
                     <span class="att-count">Total: <span class="count-num">${p.attCount || 0}</span> Days</span>
+                    <div style="font-size: 10px; color: #666; margin-top: 5px; max-width: 150px;">
+                        <strong>Dates:</strong> ${dateLogs}
+                    </div>
                 </td>
                 <td>${p.pStat}</td>
                 <td><span class="badge ${p.dStat==='Normal'?'bg-normal':p.dStat==='Death'?'bg-death':'bg-pending'}">${p.dStat}</span></td>
@@ -216,8 +223,8 @@
                 <td>${p.dDate}</td>
                 <td>₹${Number(p.pAmt).toLocaleString('en-IN')}</td>
                 <td>
-                    <button onclick="editRow(${index})">Edit</button>
-                    <button onclick="deleteRow(${index})" style="color:red">X</button>
+                    <button class="edit-btn" onclick="editRow(${index})">Edit</button>
+                    <button onclick="deleteRow(${index})" style="color:red; cursor:pointer; border:none; background:none; font-weight:bold;">X</button>
                 </td>
             `;
         });
@@ -304,4 +311,5 @@
     }
 </script>
 </body>
+
 </html>
