@@ -282,7 +282,7 @@
         const today = new Date().toLocaleDateString('en-IN');
         if (!patientsData[index].attLogs) patientsData[index].attLogs = [];
         if (patientsData[index].attLogs.includes(today)) {
-            alert("आजची हजेरी आधीच झाली आहे!");
+            alert("Date Already Added");
             return;
         }
         patientsData[index].attLogs.push(today);
@@ -336,5 +336,6 @@
 </body>
 
 </html>
+
 
 
